@@ -32,6 +32,8 @@ class ArchiveChannel(commands.Cog):
         forum="フォーラムチャンネル",
         label="ラベル",
     )
+    @app_commands.guild_only()
+    @app_commands.checks.has_permissions(manage_messages=True)
     async def archive_channel(self, ctx: commands.Context, forum: discord.ForumChannel, label: str=None):
         if ctx.interaction:
             await ctx.interaction.response.defer(thinking=True)
