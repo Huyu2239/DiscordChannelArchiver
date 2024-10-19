@@ -8,8 +8,8 @@ class ArchiveChannel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
-    async def archive_thread(self, ctx, forum, old_thread, tag, webhook, parent):
-        new_thread_name = f"{old_thread.name}/{ctx.channel.name}{"/" + ctx.channel.category.name if ctx.channel.category else ""}/{tag}"
+    async def archive_thread(self, ctx, forum, old_thread, label, webhook, parent):
+        new_thread_name = f"{old_thread.name}/{ctx.channel.name}{"/" + ctx.channel.category.name if ctx.channel.category else ""}{"/" + label if label else ""}"
         new_thread, _ = await forum.create_thread(name=new_thread_name, content="from: " + old_thread.mention + "\nparent: " + parent.mention)
         async for message in old_thread.history(limit=None, oldest_first=True):
             if len(message.content) == 0 and len(message.attachments) == 0:
@@ -26,29 +26,34 @@ class ArchiveChannel(commands.Cog):
     @commands.hybrid_command(name="チャンネル転送", description="実行したチャンネルのメッセージを指定したフォーラムに転送します。")
     @app_commands.describe(
         forum="転送先のフォーラムを指定",
-        tag="タグを指定 デフォルトは YYYY-MM-DD",
+        label="ラベルを指定",
     )
-    async def archive_channel(self, ctx: commands.Context, forum: discord.ForumChannel, tag: str=None):
+    @app_commands.rename(
+        forum="フォーラムチャンネル",
+        label="ラベル",
+    )
+    @app_commands.guild_only()
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def archive_channel(self, ctx: commands.Context, forum: discord.ForumChannel, label: str=None):
         if ctx.interaction:
             await ctx.interaction.response.defer(thinking=True)
         if ctx.author.bot:
             return
 
         webhook = await forum.create_webhook(name="チャンネル転送")
-        if tag is None:
-            tag = datetime.now().strftime("%Y-%m-%d")
 
         new_threads = []
-        new_channel_name = f"{ctx.channel.name}{"/" + ctx.channel.category.name if ctx.channel.category else ""}{"/" + tag if tag else ""}"
+        new_channel_name = f"{ctx.channel.name}{"/" + ctx.channel.category.name if ctx.channel.category else ""}{"/" + label if label else ""}"
         new_channel, first_message = await forum.create_thread(name=new_channel_name, content="from: " + ctx.channel.mention)
         async for message in ctx.channel.history(limit=None, oldest_first=True):
             if len(message.content) == 0 and len(message.attachments) == 0:
                 continue
             if message.thread:
-                new_thread = await self.archive_thread(ctx, forum, message.thread, tag, webhook, new_channel)
+                new_thread = await self.archive_thread(ctx, forum, message.thread, label, webhook, new_channel)
                 new_threads.append(new_thread)
+                embed = discord.Embed(description=f"{message.author.display_name}がスレッド: {new_thread.mention}を開始しました。")
                 await webhook.send(
-                    content=new_thread.mention + "が開始されました。",
+                    embed=embed,
                     files=[await attachment.to_file() for attachment in message.attachments],
                     username=message.author.display_name,
                     avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
