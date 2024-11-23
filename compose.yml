@@ -3,3 +3,4 @@ services:
     init: true
     build:
       dockerfile: Dockerfile
+    restart: always
