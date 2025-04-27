@@ -43,7 +43,7 @@ class ArchiveChannel(commands.Cog):
         webhook = await forum.create_webhook(name="チャンネル転送")
 
         new_threads = []
-        new_channel_name = f"{ctx.channel.name}{"/" + ctx.channel.category.name if ctx.channel.category else ""}{"/" + label if label else ""}"
+        new_channel_name = f"{label + "/" if label else ""}{ctx.channel.category.name + "/" if ctx.channel.category else ""}{ctx.channel.name}"
         new_channel, first_message = await forum.create_thread(name=new_channel_name, content="from: " + ctx.channel.mention)
         async for message in ctx.channel.history(limit=None, oldest_first=True):
             if len(message.content) == 0 and len(message.attachments) == 0:
