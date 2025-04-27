@@ -9,7 +9,7 @@ class ArchiveChannel(commands.Cog):
         self.bot = bot
     
     async def archive_thread(self, ctx, forum, old_thread, label, webhook, parent):
-        new_thread_name = f"{old_thread.name}/{ctx.channel.name}{"/" + ctx.channel.category.name if ctx.channel.category else ""}{"/" + label if label else ""}"
+        new_thread_name = f"{label + "/" if label else ""}{ctx.channel.category.name + "/" if ctx.channel.category else ""}{ctx.channel.name}/{old_thread.name}"
         new_thread, _ = await forum.create_thread(name=new_thread_name, content="from: " + old_thread.mention + "\nparent: " + parent.mention)
         async for message in old_thread.history(limit=None, oldest_first=True):
             if len(message.content) == 0 and len(message.attachments) == 0:
