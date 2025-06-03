@@ -2,20 +2,40 @@ from discord.ext import commands
 import discord
 from discord import app_commands
 from datetime import datetime
+import re
 
 
 class ArchiveChannel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
     
+    def escape_mentions(self, content):
+        """Escape mentions in the message content to prevent re-firing."""
+        # Escape @everyone and @here
+        content = content.replace('@everyone', '@\everyone').replace('@here', '@\here')
+        
+        # Escape user, role, and channel mentions
+        # Replace <@123456> with <@\123456> to escape the mention
+        mention_pattern = re.compile(r'(<@!?|<@&|<#)(\d+>)')
+        content = mention_pattern.sub(r'\1\\\2', content)
+        
+        return content
+    
     async def archive_thread(self, ctx, forum, old_thread, label, webhook, parent):
-        new_thread_name = f"{label + "/" if label else ""}{ctx.channel.category.name + "/" if ctx.channel.category else ""}{ctx.channel.name}/{old_thread.name}"
+        prefix = ""
+        if label:
+            prefix += label + "/"
+        if ctx.channel.category:
+            prefix += ctx.channel.category.name + "/"
+        new_thread_name = f"{prefix}{ctx.channel.name}/{old_thread.name}"
         new_thread, _ = await forum.create_thread(name=new_thread_name, content="from: " + old_thread.mention + "\nparent: " + parent.mention)
         async for message in old_thread.history(limit=None, oldest_first=True):
             if len(message.content) == 0 and len(message.attachments) == 0:
                 continue
+            # Escape mentions in the message content
+            escaped_content = self.escape_mentions(message.content)
             await webhook.send(
-                content=message.content,
+                content=escaped_content,
                 files=[await attachment.to_file() for attachment in message.attachments],
                 username=message.author.display_name,
                 avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
@@ -43,7 +63,12 @@ class ArchiveChannel(commands.Cog):
         webhook = await forum.create_webhook(name="チャンネル転送")
 
         new_threads = []
-        new_channel_name = f"{label + "/" if label else ""}{ctx.channel.category.name + "/" if ctx.channel.category else ""}{ctx.channel.name}"
+        prefix = ""
+        if label:
+            prefix += label + "/"
+        if ctx.channel.category:
+            prefix += ctx.channel.category.name + "/"
+        new_channel_name = f"{prefix}{ctx.channel.name}"
         new_channel, first_message = await forum.create_thread(name=new_channel_name, content="from: " + ctx.channel.mention)
         async for message in ctx.channel.history(limit=None, oldest_first=True):
             if len(message.content) == 0 and len(message.attachments) == 0:
@@ -60,15 +85,18 @@ class ArchiveChannel(commands.Cog):
                     thread=new_channel
                 )
                 continue
+            # Escape mentions in the message content
+            escaped_content = self.escape_mentions(message.content)
             await webhook.send(
-                content=message.content,
+                content=escaped_content,
                 files=[await attachment.to_file() for attachment in message.attachments],
                 username=message.author.display_name,
                 avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
                 thread=new_channel
             )
         if len(new_threads) > 0:
-            await first_message.edit(content=f"from: {ctx.channel.mention}\nスレッド:\n" + "\n".join([thread.mention for thread in new_threads]))
+            thread_mentions = "\n".join([thread.mention for thread in new_threads])
+            await first_message.edit(content=f"from: {ctx.channel.mention}\nスレッド:\n{thread_mentions}")
         await webhook.delete()
 
         if ctx.interaction:
