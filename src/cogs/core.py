@@ -12,7 +12,7 @@ class ArchiveChannel(commands.Cog):
     def escape_mentions(self, content):
         """Escape mentions in the message content to prevent re-firing."""
         # Escape @everyone and @here
-        content = content.replace('@everyone', '@\everyone').replace('@here', '@\here')
+        content = content.replace('@everyone', r'@\everyone').replace('@here', r'@\here')
         
         # Escape user, role, and channel mentions
         # Replace <@123456> with <@\123456> to escape the mention
@@ -34,13 +34,15 @@ class ArchiveChannel(commands.Cog):
                 continue
             # Escape mentions in the message content
             escaped_content = self.escape_mentions(message.content)
-            await webhook.send(
+            webhook_message = await webhook.send(
                 content=escaped_content,
                 files=[await attachment.to_file() for attachment in message.attachments],
                 username=message.author.display_name,
                 avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
-                thread=new_thread
+                thread=new_thread,
+                wait=True
             )
+            await webhook_message.edit(content=message.content)
         return new_thread
 
     @commands.hybrid_command(name="チャンネル転送", description="実行したチャンネルのメッセージを指定したフォーラムに転送します。")
@@ -87,13 +89,15 @@ class ArchiveChannel(commands.Cog):
                 continue
             # Escape mentions in the message content
             escaped_content = self.escape_mentions(message.content)
-            await webhook.send(
+            webhook_message = await webhook.send(
                 content=escaped_content,
                 files=[await attachment.to_file() for attachment in message.attachments],
                 username=message.author.display_name,
                 avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
-                thread=new_channel
+                thread=new_channel,
+                wait=True
             )
+            await webhook_message.edit(content=message.content)
         if len(new_threads) > 0:
             thread_mentions = "\n".join([thread.mention for thread in new_threads])
             await first_message.edit(content=f"from: {ctx.channel.mention}\nスレッド:\n{thread_mentions}")
