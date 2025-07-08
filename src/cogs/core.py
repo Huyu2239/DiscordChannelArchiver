@@ -87,7 +87,8 @@ class ArchiveChannel(commands.Cog):
                     files=[await attachment.to_file() for attachment in message.attachments],
                     username=message.author.display_name,
                     avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
-                    thread=new_channel
+                    thread=new_channel,
+                    wait=True
                 )
                 await webhook_message.edit(content=message.content)
                 continue
