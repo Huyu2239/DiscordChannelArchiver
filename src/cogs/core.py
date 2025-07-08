@@ -75,20 +75,22 @@ class ArchiveChannel(commands.Cog):
         async for message in ctx.channel.history(limit=None, oldest_first=True):
             if len(message.content) == 0 and len(message.attachments) == 0:
                 continue
+            # Escape mentions in the message content
+            escaped_content = self.escape_mentions(message.content)
             if message.thread:
                 new_thread = await self.archive_thread(ctx, forum, message.thread, label, webhook, new_channel)
                 new_threads.append(new_thread)
                 embed = discord.Embed(description=f"{message.author.display_name}がスレッド: {new_thread.mention}を開始しました。")
-                await webhook.send(
+                webhook_message = await webhook.send(
+                    content=escaped_content,
                     embed=embed,
                     files=[await attachment.to_file() for attachment in message.attachments],
                     username=message.author.display_name,
                     avatar_url=message.author.display_avatar.url if message.author.display_avatar else None,
                     thread=new_channel
                 )
+                await webhook_message.edit(content=message.content)
                 continue
-            # Escape mentions in the message content
-            escaped_content = self.escape_mentions(message.content)
             webhook_message = await webhook.send(
                 content=escaped_content,
                 files=[await attachment.to_file() for attachment in message.attachments],
